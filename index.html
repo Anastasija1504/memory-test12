@@ -141,6 +141,28 @@ const EXAMPLES_PER_LEVEL = 3;
 const SEQ_LENGTHS = [3,4,5,6,7];
 const SHOW_MS = 700;
 
+/* Максимально можливий результат (для розрахунку коефіцієнта) */
+const MAX_SCORE = LEVELS * EXAMPLES_PER_LEVEL * 10;
+
+/* Розрахунок коефіцієнта обсягу пам'яті (0–10) */
+function calcCoefficient(score){
+  // округляємо до цілого значення від 0 до 10
+  let pk = Math.round((score / MAX_SCORE) * 10);
+  if (pk < 0) pk = 0;
+  if (pk > 10) pk = 10;
+  return pk;
+}
+
+/* Визначення рівня за шкалою з таблиці */
+function getCoeffLabel(pk){
+  if (pk === 10) return "дуже високий";
+  if (pk >= 8)   return "високий";      // 8–9
+  if (pk === 7)  return "середній";
+  if (pk >= 5)   return "низький";      // 5–6
+  if (pk >= 3)   return "дуже низький"; // 3–4
+  return "дуже низький";
+}
+
 let state = {player:'', level:0, example:0, score:0, currentSeq:[], awaiting:false, history:[]};
 
 /* === Елементи === */
@@ -254,7 +276,7 @@ function submitAnswer(){
   state.history.push({level:state.level, example:state.example, answer:raw, expect, correct});
   addHistoryItem(state.history.at(-1));
 
-  /* Відправка результату в Telegram */
+  /* Відправка результату в Telegram (окремі відповіді) */
   sendToTelegram(
     `🎯 <b>Відповідь</b>\n`+
     `👤 ${state.player}\n`+
@@ -305,18 +327,25 @@ function addHistoryItem(it){
 }
 
 function finishGame(){
+  const pk = calcCoefficient(state.score);          // коефіцієнт 0–10
+  const levelName = getCoeffLabel(pk);              // словесний рівень
+
   display.classList.add("small-text");
   display.innerHTML = `<div style="text-align:center">
     <div style="font-size:28px;font-weight:800">Гру завершено</div>
     <div class="small">Балів: ${state.score}</div>
+    <div class="small">Коефіцієнт обсягу пам'яті (ПК): <b>${pk}</b> — ${levelName}</div>
   </div>`;
 
-  finalResultEl.textContent = `${state.player}, ваш рахунок: ${state.score}`;
+  finalResultEl.textContent =
+    `${state.player}, ваш коефіцієнт обсягу пам'яті (ПК): ${pk} — ${levelName}`;
 
+  /* Підсумок у Telegram вже у вигляді коефіцієнта */
   sendToTelegram(
-    `🏁 <b>Гру завершено</b>\n`+
-    `👤 ${state.player}\n`+
-    `🔥 Рахунок: ${state.score}`
+    `🏁 <b>Гру завершено</b>\n` +
+    `👤 ${state.player}\n` +
+    `🔥 Балів: ${state.score}\n` +
+    `🧠 Коефіцієнт обсягу пам'яті (ПК): ${pk} — ${levelName}`
   );
 
   state.awaiting = false;
